@@ -1,19 +1,188 @@
 const box = (title, sub, cls = "") => `<div class="box ${cls}"><b>${title}</b>${sub ? `<span>${sub}</span>` : ""}</div>`;
 const arrow = (label = "") => `<span class="arrow">${label} →</span>`;
 
+// 図：本の図をSVGで描き起こしたもの。色はテーマの変数を使うので、ダークモードでも読める
+const svg = (w, h, label, max, body) =>
+  `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="${label}" style="width:100%;max-width:${max}px;font-family:var(--f-body);display:block">${body}</svg>`;
+const defs = id => `<defs><marker id="${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--muted)"/></marker></defs>`;
+const T = (x, y, s, o = {}) => `<text x="${x}" y="${y}" font-size="${o.size || 11}" fill="${o.fill || "var(--ink)"}" text-anchor="${o.anchor || "start"}"${o.bold ? ' font-weight="700"' : ""}>${s}</text>`;
+const R = (x, y, w, h, o = {}) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${o.rx ?? 4}" fill="${o.fill || "var(--bg)"}" stroke="${o.stroke || "var(--line)"}" stroke-width="${o.sw || 1}"${o.dash ? ' stroke-dasharray="4 3"' : ""}/>`;
+const L = (x1, y1, x2, y2, o = {}) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${o.stroke || "var(--muted)"}" stroke-width="${o.sw || 1.2}"${o.m ? ` marker-end="url(#${o.m})"` : ""}${o.dash ? ' stroke-dasharray="4 3"' : ""}/>`;
+const ACC = { fill: "var(--accent-soft)", stroke: "var(--accent)" };
+const NG = { fill: "var(--ng-soft)", stroke: "var(--ng)" };
+const bracket = (x1, x2, y, label, up = false) => {
+  const d = up ? -5 : 5;
+  return `<path d="M${x1} ${y - d}V${y}H${x2}V${y - d}" fill="none" stroke="var(--muted)"/>` + T((x1 + x2) / 2, up ? y - 6 : y + 14, label, { anchor: "middle", size: 10, fill: "var(--muted)" });
+};
+
+const FIG = {
+  // 図2-2 ファンアウト
+  fanout: () => {
+    const rows = [["T8", "T7", "T5", "T3"], ["T8", "T6", "T5"], ["T8", "T7", "T5", "T4"]];
+    let s = defs("ah-fan");
+    s += R(0, 66, 104, 54, ACC) + T(52, 86, "ユーザーが投稿", { anchor: "middle", bold: 1 }) + T(52, 104, "新しい投稿 T8", { anchor: "middle", size: 10, fill: "var(--muted)" });
+    s += T(52, 140, "フォロワーの数だけ", { anchor: "middle", size: 10, fill: "var(--accent)" }) + T(52, 154, "書き込む", { anchor: "middle", size: 10, fill: "var(--accent)" });
+    rows.forEach((r, i) => {
+      const y = 22 + i * 60;
+      s += L(104, 93, 168, y + 15, { m: "ah-fan" });
+      s += T(174, y - 5, `フォロワー${"ABC"[i]}のタイムライン`, { size: 10, fill: "var(--muted)" });
+      r.forEach((c, k) => { s += R(174 + k * 34, y, 30, 30, k === 0 ? ACC : {}) + T(189 + k * 34, y + 19, c, { anchor: "middle" }); });
+      s += L(314, y + 15, 352, y + 15, { m: "ah-fan", dash: 1 });
+    });
+    s += R(356, 14, 112, 162) + T(412, 82, "読むときは", { anchor: "middle", bold: 1 }) + T(412, 98, "でき上がったものを", { anchor: "middle", size: 10 }) + T(412, 113, "返すだけ", { anchor: "middle", size: 10 });
+    return svg(470, 186, "図2-2 ファンアウト：新しい投稿を、投稿者のフォロワー全員のタイムラインに書き込む", 480, s);
+  },
+  // 図2-3 スループットとレスポンスタイム
+  queue: () => svg(320, 150, "図2-3 スループットが上限に近づくと、レスポンスタイムが急に増える", 420,
+    L(30, 130, 310, 130) + L(30, 10, 30, 130) + L(270, 10, 270, 130, { dash: 1 }) +
+    `<path d="M30 110 C 150 108, 220 100, 250 70 S 266 20, 268 12" fill="none" stroke="var(--accent)" stroke-width="2.5"/>` +
+    T(305, 145, "スループット", { anchor: "end", fill: "var(--muted)" }) + T(36, 20, "レスポンスタイム", { fill: "var(--muted)" }) +
+    T(266, 145, "処理の上限", { anchor: "end", size: 10, fill: "var(--muted)" }) + T(40, 124, "空いているときはサービスタイムだけ", { size: 10, fill: "var(--muted)" })),
+  // リトライストームの悪循環
+  loop: () => {
+    const b = (x, y, a, c) => R(x, y, 136, 40) + T(x + 68, y + 17, a, { anchor: "middle", size: 10.5, bold: 1 }) + T(x + 68, y + 32, c, { anchor: "middle", size: 9.5, fill: "var(--muted)" });
+    let s = defs("ah-loop");
+    s += b(132, 4, "負荷が限界に近づく", "処理が追いつかない") + b(260, 80, "キューが伸びる", "応答が遅れる") + b(132, 156, "タイムアウト", "クライアントが待つのをやめる") + b(4, 80, "すぐに再送する", "仕事がさらに増える");
+    s += L(262, 44, 300, 78, { m: "ah-loop" }) + L(300, 120, 262, 154, { m: "ah-loop" }) + L(138, 156, 100, 122, { m: "ah-loop" }) + L(100, 80, 138, 46, { m: "ah-loop" });
+    s += T(200, 100, "リトライストーム", { anchor: "middle", bold: 1, fill: "var(--ng)" }) + T(200, 116, "抜け出せない悪循環", { anchor: "middle", size: 9.5, fill: "var(--muted)" });
+    return svg(400, 200, "リトライストーム：負荷が増え、キューが伸び、タイムアウトして再送し、さらに負荷が増える悪循環", 420, s);
+  },
+  // 図2-4 レスポンスタイムの内訳
+  timing: () => {
+    let s = defs("ah-tim");
+    s += T(0, 54, "クライアント", { size: 10.5, bold: 1 }) + T(0, 144, "サービス", { size: 10.5, bold: 1 });
+    s += L(80, 50, 440, 50) + L(80, 140, 440, 140);
+    s += L(110, 50, 168, 138, { m: "ah-tim", sw: 2.5 }) + T(124, 92, "リクエスト", { size: 10, fill: "var(--muted)", anchor: "end" });
+    s += R(170, 132, 70, 16, { dash: 1, rx: 2 }) + T(205, 126, "待つ", { anchor: "middle", size: 10, fill: "var(--muted)" });
+    s += R(240, 130, 92, 20, { ...ACC, rx: 2 }) + T(286, 144, "処理", { anchor: "middle", size: 10.5, bold: 1, fill: "var(--accent)" });
+    s += L(332, 140, 390, 52, { m: "ah-tim", sw: 2.5 }) + T(372, 92, "レスポンス", { size: 10, fill: "var(--muted)" });
+    s += bracket(110, 168, 168, "ネットワーク") + bracket(170, 240, 168, "キューイング") + bracket(240, 332, 168, "サービスタイム") + bracket(332, 390, 168, "ネットワーク");
+    s += bracket(110, 390, 30, "レスポンスタイム（クライアントから見た時間）", true);
+    return svg(450, 190, "図2-4 レスポンスタイムは、ネットワークレイテンシ、キューイング遅延、サービスタイムを合わせた時間", 480, s);
+  },
+  // 図2-5 100個のリクエストのレスポンスタイムと、平均・パーセンタイル
+  pct: () => {
+    let x = 11;
+    const rnd = () => (x = (x * 1103515245 + 12345) % 2147483648) / 2147483648;
+    const vals = Array.from({ length: 100 }, () => Math.round(40 + rnd() * 50 + (rnd() < 0.07 ? 80 + rnd() * 260 : 0)));
+    const sorted = [...vals].sort((a, b) => a - b);
+    const at = p => sorted[Math.ceil(p * vals.length) - 1];
+    const max = sorted[sorted.length - 1], H = 140, y = v => 160 - (v / max) * H;
+    let s = vals.map((v, i) => `<rect x="${10 + i * 3.6}" y="${y(v)}" width="2.8" height="${160 - y(v)}" fill="var(--muted)" opacity=".45"/>`).join("");
+    const lines = [
+      ["平均", vals.reduce((a, b) => a + b, 0) / vals.length, "var(--ng)", 1],
+      ["p50", at(0.5), "var(--ink)", 0],
+      ["p95", at(0.95), "var(--accent)", 0],
+      ["p99", at(0.99), "var(--accent)", 1],
+    ].map(([n, v, c, d]) => ({ n, v: Math.round(v), c, d, y: y(v) })).sort((a, b) => b.y - a.y);
+    for (let i = 1; i < lines.length; i++) lines[i].ly = Math.min(lines[i].y, (lines[i - 1].ly ?? lines[i - 1].y) - 13);
+    s += lines.map(l => L(10, l.y, 372, l.y, { stroke: l.c, sw: 1.5, dash: l.d }) + T(378, (l.ly ?? l.y) + 4, `${l.n} ${l.v} ms`, { size: 10.5, fill: l.c, bold: 1 })).join("");
+    s += L(10, 160, 372, 160) + T(10, 176, "リクエスト（届いた順）", { size: 10, fill: "var(--muted)" });
+    return svg(450, 180, "図2-5 100個のリクエストのレスポンスタイム。平均は外れ値に引っぱられ、p95とp99が外れ値の深刻さを表す", 480, s);
+  },
+  // 図2-6 末尾遅延の増幅
+  tail: (rows, note) => {
+    const n = rows.length, h = 24, top = 8, H = top * 2 + n * h, cy = H / 2;
+    let s = defs("ah-tail");
+    s += R(0, cy - 22, 92, 44) + T(46, cy - 3, "ユーザーの", { anchor: "middle", size: 10.5 }) + T(46, cy + 12, "リクエスト", { anchor: "middle", size: 10.5 });
+    s += L(92, cy, 128, cy, { m: "ah-tail" });
+    s += R(130, cy - 22, 100, 44, ACC) + T(180, cy + 4, "Webアプリ", { anchor: "middle", bold: 1 });
+    rows.forEach(([name, val, slow], i) => {
+      const yy = top + i * h;
+      s += L(230, cy, 290, yy + 10, { stroke: slow ? "var(--ng)" : "var(--line)", sw: slow ? 2 : 1 });
+      s += R(290, yy, 160, 20, slow ? NG : {}) + T(298, yy + 14, name, { size: 10 }) + T(444, yy + 14, val, { size: 10, anchor: "end", bold: slow, fill: slow ? "var(--ng)" : "var(--muted)" });
+    });
+    if (note) s += T(180, cy + 40, note, { anchor: "middle", size: 10, fill: "var(--ng)", bold: 1 });
+    return svg(452, H, "図2-6 1つのリクエストで複数のバックエンドを呼ぶと、1つの遅い呼び出しが全体を遅くする", 480, s);
+  },
+  // 障害と機能不全（3ノードのクラスタ）
+  cluster: labels => {
+    let s = defs("ah-cl");
+    s += R(4, 22, 300, 132, { dash: 1 }) + T(14, 16, "DBクラスタ（1台までのクラッシュに耐える設計）", { size: 10.5, fill: "var(--muted)" });
+    [0, 1, 2].forEach(i => {
+      const x = 22 + i * 96, down = i === 1;
+      s += R(x, 48, 76, 64, down ? NG : {}) + T(x + 38, 72, `ノード${i + 1}`, { anchor: "middle", bold: 1 }) + T(x + 38, 92, down ? "ディスク故障" : "ディスク", { anchor: "middle", size: 10, fill: down ? "var(--ng)" : "var(--muted)" });
+      if (down) s += T(x + 38, 106, "停止", { anchor: "middle", size: 10, bold: 1, fill: "var(--ng)" });
+    });
+    if (labels) s += T(156, 136, "部品としては機能不全 ＝ クラスタから見れば「障害」", { anchor: "middle", size: 10, fill: "var(--ng)" });
+    s += L(304, 88, 340, 88, { m: "ah-cl" });
+    s += R(342, 58, 110, 60, { fill: "var(--ok-soft)", stroke: "var(--ok)" }) + T(397, 82, "ユーザー", { anchor: "middle", bold: 1 }) + T(397, 100, "SLOは満たしている", { anchor: "middle", size: 9.5, fill: "var(--ok)" });
+    if (labels) s += T(397, 136, "全体は「機能不全」ではない", { anchor: "middle", size: 10, fill: "var(--ok)" });
+    return svg(456, 150, "3台のクラスタで1台のディスクが壊れても、サービスはSLOを満たし続けている", 480, s);
+  },
+  // 2.4.2 3つのアーキテクチャ
+  arch: () => {
+    const small = (x, y, w, t, o = {}) => R(x, y, w, 18, { rx: 3, ...o }) + T(x + w / 2, y + 13, t, { anchor: "middle", size: 9.5 });
+    let s = "";
+    const head = (x, a, b) => T(x + 75, 14, a, { anchor: "middle", bold: 1 }) + T(x + 75, 28, b, { anchor: "middle", size: 9.5, fill: "var(--muted)" });
+    s += head(0, "共有メモリ", "スケールアップ") + head(170, "共有ディスク", "NAS・SAN") + head(340, "シェアードナッシング", "スケールアウト");
+    s += R(6, 40, 138, 132, ACC);
+    [0, 1, 2, 3].forEach(i => { s += small(14 + i * 31, 52, 27, "CPU"); });
+    s += small(14, 84, 120, "大きなメモリ（共有）") + small(14, 116, 120, "ディスク") + T(75, 160, "1台の強いマシン", { anchor: "middle", size: 10, fill: "var(--accent)" });
+    [0, 1, 2].forEach(i => {
+      const x = 176 + i * 48;
+      s += R(x, 40, 42, 50) + small(x + 3, 46, 36, "CPU") + small(x + 3, 68, 36, "メモリ") + L(x + 21, 90, x + 21, 128);
+    });
+    s += R(180, 128, 136, 30, NG) + T(248, 147, "共有ディスク（ロックの競合）", { anchor: "middle", size: 9.5, fill: "var(--ng)" });
+    [0, 1, 2].forEach(i => {
+      const x = 346 + i * 48;
+      s += R(x, 40, 42, 96, ACC) + small(x + 3, 46, 36, "CPU") + small(x + 3, 70, 36, "メモリ") + small(x + 3, 94, 36, "ディスク") + L(x + 21, 136, x + 21, 152);
+    });
+    s += L(356, 152, 478, 152, { sw: 2 }) + T(417, 168, "ネットワークだけでつながる", { anchor: "middle", size: 9.5, fill: "var(--muted)" });
+    return svg(490, 176, "共有メモリ、共有ディスク、シェアードナッシングの3つのアーキテクチャ", 500, s);
+  },
+  // フォロワー数の偏り
+  followers: () => svg(430, 170, "フォロワー数の分布は極端に偏っている。ほとんどの人は数人で、ごく一部が1億人を超える", 460,
+    L(30, 150, 420, 150) + L(30, 10, 30, 150) +
+    `<path d="M32 16 C 40 120, 70 140, 418 146 L418 150 L32 150 Z" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"/>` +
+    L(30, 138, 420, 138, { dash: 1, stroke: "var(--ng)" }) + T(418, 132, "平均は200人", { anchor: "end", size: 10, fill: "var(--ng)" }) +
+    T(46, 30, "ごく一部のセレブは1億人超", { size: 10.5, bold: 1 }) + T(250, 112, "ほとんどの人は数人〜数百人", { size: 10.5, bold: 1, anchor: "middle" }) +
+    T(36, 10, "フォロワー数", { size: 10, fill: "var(--muted)" }) + T(420, 166, "アカウント（フォロワーの多い順）", { size: 10, fill: "var(--muted)", anchor: "end" })),
+  // 機能不全の原因
+  causes: () => svg(420, 70, "ある大規模サービスの調査では、ハードウェアが関係した機能不全は10〜25%にすぎない", 460,
+    `<rect x="0" y="18" width="40" height="24" fill="var(--accent)"/><rect x="40" y="18" width="60" height="24" fill="var(--accent)" opacity=".35"/><rect x="100" y="18" width="316" height="24" fill="var(--ng-soft)" stroke="var(--ng)"/>` +
+    T(0, 12, "ハードウェアが関係：10〜25%", { size: 10.5, bold: 1, fill: "var(--accent)" }) + T(258, 34, "主因はオペレーターの設定変更", { anchor: "middle", size: 10.5, bold: 1, fill: "var(--ng)" }) +
+    T(0, 60, "機能不全のうち、原因が何だったか（ある大規模インターネットサービスの調査）", { size: 9.5, fill: "var(--muted)" })),
+  // ヒストグラムを足す
+  hist: () => {
+    const bars = (x, hs, c) => hs.map((h, i) => `<rect x="${x + i * 12}" y="${70 - h}" width="10" height="${h}" fill="${c}"/>`).join("");
+    const a = [10, 34, 46, 20, 8, 3], b = [4, 12, 30, 40, 22, 14], sum = a.map((v, i) => v + b[i]);
+    return svg(360, 96, "パーセンタイルは平均せず、ヒストグラムを足し合わせてから計算する", 380,
+      bars(0, a, "var(--muted)") + T(36, 88, "サーバー1", { anchor: "middle", size: 10, fill: "var(--muted)" }) + T(84, 48, "+", { anchor: "middle", size: 18, bold: 1 }) +
+      bars(100, b, "var(--muted)") + T(136, 88, "サーバー2", { anchor: "middle", size: 10, fill: "var(--muted)" }) + T(184, 48, "=", { anchor: "middle", size: 18, bold: 1 }) +
+      sum.map((h, i) => `<rect x="${200 + i * 12}" y="${70 - h * 0.85}" width="10" height="${h * 0.85}" fill="var(--accent)"/>`).join("") +
+      T(236, 88, "全体の分布", { anchor: "middle", size: 10, fill: "var(--accent)" }) + T(290, 40, "→ ここから", { size: 10.5 }) + T(290, 56, "p99を求める", { size: 10.5, bold: 1 }) +
+      L(0, 70, 272, 70));
+  },
+};
+const BOOK_TAIL = [["バックエンド1", "92 ms"], ["バックエンド2", "76 ms"], ["バックエンド3", "103 ms"], ["バックエンド4", "143 ms"], ["バックエンド5", "86 ms"], ["バックエンド6", "487 ms", true], ["バックエンド7", "133 ms"]];
 
 const SLIDES = [
   { type: "cover" },
   { type: "intro", id: "nfr", sec: "2章 はじめに", title: "機能要件と非機能要件" },
   { type: "intro", id: "timeline", sec: "2.1 ケーススタディ：ソーシャルネットワークのホームタイムライン", title: "読むときに集めるか、書くときに配るか" },
   { type: "intro", id: "perf", sec: "2.2 パフォーマンスの表現方法", title: "スループットとレスポンスタイム" },
-  { type: "intro", id: "latency", sec: "2.2.1〜2.2.3 レイテンシとパーセンタイル", title: "遅さは平均ではなく分布で見る" },
+  { type: "intro", id: "latency", sec: "2.2.1〜2.2.2 レイテンシとパーセンタイル", title: "遅さは平均ではなく分布で見る" },
+  { type: "intro", id: "metrics", sec: "2.2.3 レスポンスタイムメトリクスの活用", title: "末尾遅延の増幅とSLO" },
   { type: "intro", id: "fault", sec: "2.3 信頼性と耐障害性", title: "壊れても正しく動き続ける" },
   { type: "intro", id: "human", sec: "2.3.3 人間と信頼性", title: "ヒューマンエラーは原因ではない" },
   { type: "intro", id: "scale", sec: "2.4 スケーラビリティ", title: "負荷が増えたらどうするか" },
   { type: "intro", id: "maint", sec: "2.5 メンテナンス性", title: "運用性・簡潔性・発展性" },
   {
     type: "q", sec: "2.1.1 ユーザー、投稿、フォローの表現", title: "ポーリング間隔を延ばしたら", ref: "timeline",
+    aside: () => `<div class="label">図2-1 のスキーマと、ホームタイムラインのクエリ</div>
+      <div class="row" style="align-items:flex-start">
+        <div class="tbl-wrap"><table><thead><tr><th colspan="2">users</th></tr></thead><tbody><tr><td>id</td><td>12</td></tr><tr><td>screen_name</td><td>jack</td></tr></tbody></table></div>
+        <div class="tbl-wrap"><table><thead><tr><th colspan="2">posts</th></tr></thead><tbody><tr><td>id</td><td>20</td></tr><tr><td>sender_id</td><td>12</td></tr><tr><td>text</td><td>just setting up…</td></tr><tr><td>timestamp</td><td>1142974214</td></tr></tbody></table></div>
+        <div class="tbl-wrap"><table><thead><tr><th colspan="2">follows</th></tr></thead><tbody><tr><td>follower_id</td><td>17055506</td></tr><tr><td>followee_id</td><td>12</td></tr></tbody></table></div>
+      </div>
+      <pre>SELECT posts.*, users.* FROM posts
+  JOIN follows ON posts.sender_id = follows.followee_id
+  JOIN users   ON posts.sender_id = users.id
+  WHERE follows.follower_id = current_user
+  ORDER BY posts.timestamp DESC
+  LIMIT 1000</pre>
+      <p class="hint">1回のクエリで、フォロー中の全員の最近の投稿を集めてマージする。</p>`,
     prompt: "同時にオンラインのユーザーが1,000万人、平均200人をフォローしている。読むときに集める方式で、ポーリングの間隔を5秒から10秒に延ばした。フォロー先ごとのルックアップ数と、書くときに配る方式（投稿5,800件/秒）の書き込み数を比べた説明として正しいのは？",
     choices: [
       { text: "毎秒100万回。書くときに配る方式の約116万回/秒とほぼ同じになる", ok: false, note: "1,000万人 ÷ 10秒 = 毎秒100万クエリですが、1クエリごとにフォロー中の200人分の投稿を引くので、ルックアップはその200倍です。" },
@@ -25,6 +194,7 @@ const SLIDES = [
   },
   {
     type: "q", sec: "2.1.2 タイムラインのマテリアライズと更新", title: "投稿が急増した夜", ref: "timeline",
+    aside: () => `<div class="label">図2-2 ファンアウト</div>${FIG.fanout()}`,
     prompt: "ホームタイムラインをマテリアライズしているSNSで、大きなイベントがあり投稿が普段の10倍に急増した。ユーザーが体験しやすいのはどれ？",
     choices: [
       { text: "タイムラインの読み込みが遅くなるが、新しい投稿はすぐタイムラインに現れる", ok: false, note: "読むときに集める方式なら、読み込みのたびにクエリを実行するので、こうなりやすいです。マテリアライズした方式では逆になります。" },
@@ -36,6 +206,7 @@ const SLIDES = [
   },
   {
     type: "q", sec: "2.1.2 タイムラインのマテリアライズと更新", title: "捨ててもよい書き込み", ref: "timeline",
+    aside: () => `<div class="label">フォロワー数の分布</div>${FIG.followers()}<p class="hint">平均200人という数字は、この偏りを隠している。</p>`,
     prompt: "タイムラインへの書き込み負荷を減らすため、書き込みの一部を捨てる案が出た。本文の考え方で、捨てても問題になりにくいのはどれ？",
     choices: [
       { text: "5万アカウントをフォローしていて、フォロー先がよく投稿するユーザーのタイムラインへの書き込み", ok: true, note: "このユーザーがタイムラインの投稿をすべて読んでいる可能性は低いので、一部を捨てて、フォロー先の投稿のサンプルだけを見せても問題ありません。" },
@@ -47,6 +218,7 @@ const SLIDES = [
   },
   {
     type: "q", sec: "2.2 パフォーマンスの表現方法", title: "負荷が下がっても戻らない", ref: "perf",
+    aside: () => `<div class="label">悪循環</div>${FIG.loop()}`,
     prompt: "セールのピークで一時的に過負荷になった。ピークが過ぎて負荷が下がったのに、サービスは過負荷のまま回復しない。クライアントは、タイムアウトするとすぐに再送する実装になっている。対策として逆効果になるのはどれ？",
     choices: [
       { text: "リトライの間隔を少しずつ長くし、ランダムな揺らぎを加える", ok: false, note: "指数バックオフです。再送が一斉に押し寄せるのを防ぐ、本文が挙げる対策の1つです。" },
@@ -58,6 +230,7 @@ const SLIDES = [
   },
   {
     type: "q", sec: "2.2.1 レイテンシとレスポンスタイム", title: "サーバーでは速いのに", ref: "latency",
+    aside: () => `<div class="label">図2-4 レスポンスタイムの内訳</div>${FIG.timing()}`,
     prompt: "APIサーバーのログでは、リクエストの処理時間のp99は30ms。ところが、クライアント側で計測するとp99は800msだった。説明として最も筋が通るのはどれ？",
     choices: [
       { text: "サーバーのログはサービスタイムしか測っておらず、CPUが空くのを待つ時間やネットワークでかかる時間が入っていない", ok: true, note: "キューイング遅延はサービスタイムに含まれません。少数の遅いリクエストが後続を待たせる先頭ブロッキングも、サーバー側の処理時間には現れません。" },
@@ -87,7 +260,8 @@ const SLIDES = [
     takeaway: "高いパーセンタイル（<b>末尾遅延</b>）は、誰がその遅さを受けているかまで考えて見る。ただし、どこまで追うかは費用対効果で決める。",
   },
   {
-    type: "q", sec: "2.2.3 レスポンスタイムメトリクスの活用", title: "10個のバックエンド", ref: "latency",
+    type: "q", sec: "2.2.3 レスポンスタイムメトリクスの活用", title: "10個のバックエンド", ref: "metrics",
+    aside: () => `<div class="label">この問題の構成</div>${FIG.tail(Array.from({ length: 10 }, (_, i) => [`バックエンド${i + 1}`, "1%で1秒以上"]))}`,
     prompt: "1つのページを返すのに、10個のバックエンドを並列に呼ぶ。どのバックエンドも、呼び出しの1%で1秒以上かかる（遅くなるかどうかは互いに独立とする）。ページを返すのに1秒以上かかるリクエストは、およそ何%？",
     choices: [
       { text: "約1%。並列に呼んでいるので、遅延が足し算になることはない", ok: false, note: "足し算にはなりませんが、ページは10個すべてが返るまで待ちます。どれか1つでも遅ければ、ページも遅くなります。" },
@@ -98,7 +272,12 @@ const SLIDES = [
     takeaway: "<b>末尾遅延の増幅</b>：バックエンドではまれな遅延も、呼び出す数が増えるとユーザーにはよくある遅延になる。だから、バックエンドほど高いパーセンタイルが大事。",
   },
   {
-    type: "q", sec: "2.2.3 レスポンスタイムメトリクスの活用", title: "10台のp99をまとめる", ref: "latency",
+    type: "q", sec: "2.2.3 レスポンスタイムメトリクスの活用", title: "10台のp99をまとめる", ref: "metrics",
+    aside: () => `<div class="label">ダッシュボードに届いている値（ある1分間）</div>
+      <div class="tbl-wrap" style="max-height:none"><table>
+        <thead><tr><th>サーバー</th><th>リクエスト数</th><th>p99</th></tr></thead>
+        <tbody>${[[1, 9800, 182], [2, 10200, 176], [3, 9900, 190], [4, 10100, 185], [5, 1200, 1450], [6, 9700, 179], [7, 10000, 188], [8, 10300, 177], [9, 9900, 184], [10, 10050, 181]]
+          .map(([n, c, p]) => `<tr><td>${n}</td><td class="num">${c.toLocaleString()}</td><td class="num">${p.toLocaleString()} ms</td></tr>`).join("")}</tbody></table></div>`,
     prompt: "10台のAPIサーバーが、それぞれ1分ごとに自分のp99を報告している。ダッシュボードに全体のp99を出したい。正しい方法はどれ？",
     choices: [
       { text: "10台のp99を、それぞれのリクエスト数で重み付けして平均する", ok: false, note: "重み付けしても、パーセンタイルの平均であることは変わりません。数学的に意味がない、と本文は述べています。" },
@@ -110,6 +289,7 @@ const SLIDES = [
   },
   {
     type: "q", sec: "2.3.1 耐障害性", title: "1台が止まったクラスタ", ref: "fault",
+    aside: () => FIG.cluster(false),
     prompt: "3台構成のDBクラスタは、1台までのクラッシュに耐えるように設計されている。1台のディスクが壊れてそのノードが止まったが、サービスはSLOを満たし続けている。正しい説明はどれ？",
     choices: [
       { text: "システムの一部が正しく動かなくなったので、システムは機能不全を起こしている", ok: false, note: "機能不全は、システム全体がユーザーに必要なサービスを提供できなくなることです。SLOを満たしているので、機能不全ではありません。" },
@@ -154,6 +334,7 @@ const SLIDES = [
   },
   {
     type: "q", sec: "2.4.2 共有メモリ、共有ディスク、シェアードナッシングアーキテクチャ", title: "スケールアップかスケールアウトか", ref: "scale",
+    aside: () => `<div class="label">3つのアーキテクチャ</div>${FIG.arch()}`,
     prompt: "1台のDBが限界に近く、2倍の負荷に備えたい。スケールの方法を比べた説明として正しいのはどれ？",
     choices: [
       { text: "2倍のスペックのマシンに移れば、費用はほぼ2倍で、2倍の負荷をさばける", ok: false, note: "2倍のリソースを持つハイエンドマシンは、ふつう2倍をはるかに超える費用がかかります。ボトルネックがあるので、実際に2倍の負荷をさばける可能性も低いです。" },
@@ -204,6 +385,8 @@ const INTRO_BODY = {
       <div class="col">
         <p class="prompt"><b>機能要件</b>は、アプリが何をできるか（どんな画面やボタンがあり、各操作で何が起きるか）です。<b>非機能要件</b>は、速さ、信頼性、セキュリティ、法令への準拠、保守のしやすさなどです。</p>
         <p class="prompt">非機能要件は当たり前すぎて書かれないこともありますが、機能と同じくらい大事です。耐えられないほど遅いアプリや、すぐ壊れるアプリは、ないのと同じです。</p>
+        <div class="label">この章の流れ</div>
+        <div class="flow" style="flex-direction:column;align-items:stretch">${box("2.1 ケーススタディ", "SNSのホームタイムラインで、スケールの課題を具体的に見る", "accent")}${box("2.2 パフォーマンス", "スループット、レスポンスタイム、パーセンタイル")}${box("2.3 信頼性", "障害と機能不全、ハードウェア・ソフトウェア・人")}${box("2.4 スケーラビリティ", "負荷の表し方と、3つのアーキテクチャ")}${box("2.5 メンテナンス性", "運用性・簡潔性・発展性")}</div>
       </div>
       <div class="col">
         <div class="tbl-wrap wrap" style="max-height:none"><table>
@@ -220,12 +403,13 @@ const INTRO_BODY = {
   timeline: () => `<div class="grid">
       <div class="col">
         <p class="prompt">X（旧Twitter）のようなSNSを考えます。投稿は平均5,800件/秒（ピークは15万件/秒）、ユーザーは平均200人をフォローし、200人にフォローされています。ただし実際の分布は極端に偏っていて、フォロワーが1億人を超えるセレブもいます。</p>
+        <p class="hint">ホームタイムライン＝<b>フォローしている人の最近の投稿を、新しい順に並べたもの</b>。データは users・posts・follows の3テーブル（図2-1）。これを作る方法が2つある。</p>
         <div class="tbl-wrap wrap" style="max-height:none"><table>
           <thead><tr><th></th><th>読むときに集める</th><th>書くときに配る</th></tr></thead>
           <tbody>
-            <tr><td>投稿したとき</td><td>postsに1行書くだけ</td><td>フォロワー全員のタイムラインに書く（<b>ファンアウト</b>）</td></tr>
-            <tr><td>読むとき</td><td>フォロー先の投稿をJOINして集める</td><td>でき上がったタイムラインを返すだけ</td></tr>
-            <tr><td>コスト</td><td>1,000万人が5秒ごとにポーリング → 200万クエリ/秒 × 200人 = <b>4億ルックアップ/秒</b></td><td>5,800投稿/秒 × 200人 = <b>約116万書き込み/秒</b></td></tr>
+            <tr><td style="white-space:nowrap">投稿したとき</td><td>postsに1行INSERTするだけ</td><td>フォロワー全員のタイムラインに書く（<b>ファンアウト</b>）</td></tr>
+            <tr><td style="white-space:nowrap">読むとき</td><td>フォロー先200人のpostsをJOINし、新しい順に並べる。これを<b>5秒ごとに繰り返す</b>（ポーリング）</td><td>でき上がったタイムラインを返すだけ</td></tr>
+            <tr><td style="white-space:nowrap">コスト</td><td>1,000万人 ÷ 5秒 = 200万クエリ/秒<br>× フォロー先200人 = <b>4億ルックアップ/秒</b></td><td>5,800投稿/秒<br>× フォロワー200人 = <b>約116万書き込み/秒</b></td></tr>
           </tbody></table></div>
       </div>
       <div class="col">
@@ -235,6 +419,8 @@ const INTRO_BODY = {
           <li><b>大量にフォローしていて、フォロー先がよく投稿するユーザー</b>：どうせ全部は読まないので、書き込みの一部を捨ててサンプルを見せればよい。</li>
           <li><b>フォロワーが非常に多いセレブ</b>：書き込みは捨てられない。投稿を配らずに別に保存し、読み込みのときにマージする。それでも大量のインフラが要る。</li>
         </ul>
+        <div class="label">図2-2 書くときに配る（ファンアウト）</div>
+        ${FIG.fanout()}
         <p class="takeaway">読む回数の方がずっと多いので、<b>仕事を書き込み側に寄せる</b>。ただし、設計を決めるのは平均ではなく<b>分布の端</b>。</p>
       </div>
     </div>`,
@@ -245,15 +431,7 @@ const INTRO_BODY = {
           <li><b>スループット</b>：1秒あたりに処理するリクエスト数やデータ量。必要なサーバー台数、つまりコストを決める。</li>
         </ul>
         <div class="label">図2-3：スループットとレスポンスタイム</div>
-        <svg style="width:100%;max-width:420px" viewBox="0 0 320 150" role="img" aria-label="スループットが上限に近づくと、レスポンスタイムが急に増える">
-          <line x1="30" y1="130" x2="310" y2="130" stroke="var(--muted)" />
-          <line x1="30" y1="10" x2="30" y2="130" stroke="var(--muted)" />
-          <line x1="270" y1="10" x2="270" y2="130" stroke="var(--muted)" stroke-dasharray="4 4" />
-          <path d="M30 110 C 150 108, 220 100, 250 70 S 266 20, 268 12" fill="none" stroke="var(--accent)" stroke-width="2.5" />
-          <text x="305" y="145" font-size="11" fill="var(--muted)" text-anchor="end">スループット</text>
-          <text x="36" y="20" font-size="11" fill="var(--muted)">レスポンスタイム</text>
-          <text x="266" y="145" font-size="10" fill="var(--muted)" text-anchor="end">処理の上限</text>
-        </svg>
+        ${FIG.queue()}
         <p class="hint">上限に近づくと、前のリクエストが終わるのを待つ<b>キューイング</b>のせいで、レスポンスタイムが急に悪化する。</p>
       </div>
       <div class="col">
@@ -267,26 +445,44 @@ const INTRO_BODY = {
             <tr><td>サーバー</td><td><b>負荷の削減</b>（load shedding）：過負荷に近づいたら、先回りしてリクエストを拒否する</td></tr>
             <tr><td>サーバー</td><td><b>バックプレッシャー</b>：クライアントに速度を落とすよう応答する</td></tr>
           </tbody></table></div>
+        ${FIG.loop()}
       </div>
     </div>`,
   latency: () => `<div class="grid">
       <div class="col">
-        <div class="flow">${box("ネットワークレイテンシ", "行き")}${arrow("+")}${box("キューイング遅延", "CPUが空くのを待つ")}${arrow("+")}${box("サービスタイム", "実際に処理している時間", "accent")}${arrow("+")}${box("ネットワークレイテンシ", "帰り")}</div>
+        <div class="label">図2-4 レスポンスタイムの内訳</div>
+        ${FIG.timing()}
         <ul class="points">
-          <li><b>レスポンスタイム</b>は、クライアントから見たこれら全部の時間。</li>
+          <li><b>レスポンスタイム</b>は、クライアントから見た全体の時間。<b>サービスタイム</b>は、サービスが実際に処理している時間。<b>レイテンシ</b>は、処理されずに待っている時間の総称。</li>
+          <li>同じリクエストでも、コンテキストスイッチ、パケットの再送、GCの停止、ページフォールトなどで時間がばらつく。</li>
           <li>少数の遅いリクエストが後続を待たせる<b>先頭ブロッキング</b>が、ばらつきの大部分を占めることが多い。キューイング遅延はサービスタイムに入らないので、<b>クライアント側で測る</b>。</li>
+        </ul>
+      </div>
+      <div class="col">
+        <div class="label">図2-5 100個のリクエストのレスポンスタイム</div>
+        ${FIG.pct()}
+        <ul class="points">
           <li><b>平均</b>は、スループットの限界を見積もるのには使える。ただ、その遅さを実際に経験した人がどれだけいるかはわからない。</li>
           <li><b>p50（中央値）</b>は典型的な待ち時間。<b>p95・p99・p999</b>は外れ値の深刻さ（<b>末尾遅延</b>）を表す。</li>
           <li>Amazonは内部サービスの要件をp99.9で決めている。最も遅いリクエストを受けるのは、データが多い、つまりたくさん買ってきた<b>最も価値のある顧客</b>であることが多いから。p99.99はコストが見合わないと判断した。</li>
         </ul>
       </div>
+    </div>`,
+  metrics: () => `<div class="grid">
+      <div class="col">
+        <div class="label">図2-6 末尾遅延の増幅</div>
+        ${FIG.tail(BOOK_TAIL, "全体は487 msかかる")}
+        <p class="prompt">1つのリクエストで複数のバックエンドを呼ぶと、並列に呼んでも、いちばん遅いものを待つことになります。1つでも遅ければ全体が遅くなり、呼ぶ数が多いほど、遅い呼び出しに当たる確率が上がります。これを<b>末尾遅延の増幅</b>と呼びます。</p>
+        <p class="takeaway">バックエンドではまれな遅延も、ユーザーにはよくある遅延になる。だから<b>バックエンドほど高いパーセンタイルが大事</b>。</p>
+      </div>
       <div class="col">
         <ul class="points">
-          <li><b>末尾遅延の増幅</b>：1つのリクエストで複数のバックエンドを呼ぶと、並列に呼んでも、いちばん遅いものを待つことになる。1つでも遅ければ全体が遅い。呼ぶ数が多いほど、遅い呼び出しに当たる確率が上がる。</li>
-          <li><b>SLO</b>は目標（例：p50 &lt; 200ms、p99 &lt; 1秒、99.9%がエラーなし）。<b>SLA</b>は、それを満たせなかったときにどうするか（返金など）を決めた契約。</li>
-          <li>パーセンタイルの<b>平均は数学的に意味がない</b>。マシンをまたいだり時間解像度を下げたりするときは、<b>ヒストグラムを足し合わせる</b>（HdrHistogram、t-digest、DDSketchなど）。</li>
+          <li><b>SLO</b>は目標（例：p50 &lt; 200ms、p99 &lt; 1秒、有効なリクエストの99.9%がエラーなし）。<b>SLA</b>は、それを満たせなかったときにどうするか（返金など）を決めた契約。</li>
+          <li>ダッシュボードには、直近10分などの時間の窓でパーセンタイルを計算して出す。全部並べ替えるのが重ければ、近似のアルゴリズム（HdrHistogram、t-digest、OpenHistogram、DDSketch）を使う。</li>
+          <li>パーセンタイルの<b>平均は数学的に意味がない</b>。マシンをまたいだり時間解像度を下げたりするときは、<b>ヒストグラムを足し合わせる</b>。</li>
         </ul>
-        <p class="takeaway">レスポンスタイムは1つの数値ではなく<b>分布</b>。どこで、どのパーセンタイルを、どう集約するかまで決めて初めて意味を持つ。</p>
+        <div class="label">ヒストグラムを足してから計算する</div>
+        ${FIG.hist()}
       </div>
     </div>`,
   fault: () => `<div class="grid">
@@ -300,6 +496,7 @@ const INTRO_BODY = {
           <li><b>単一障害点（SPOF）</b>：そこが壊れると、システム全体が機能不全になる部分。</li>
           <li><b>フォールトインジェクション</b>：わざとプロセスを止めるなどして、耐障害性の仕組みを常にテストする。これを実験として体系化したのが<b>カオスエンジニアリング</b>。</li>
         </ul>
+        ${FIG.cluster(true)}
       </div>
       <div class="col">
         <div class="label">ハードウェアの障害</div>
@@ -313,6 +510,7 @@ const INTRO_BODY = {
   human: () => `<div class="grid">
       <div class="col">
         <p class="prompt">ある大規模サービスの調査では、機能不全の主な原因はオペレーターによる設定変更で、ハードウェアが関係していたのは10〜25%にすぎませんでした。</p>
+        ${FIG.causes()}
         <p class="prompt">それでも、人を責めるのは逆効果です。いわゆる「ヒューマンエラー」は真の原因ではなく、人々がその中でベストを尽くして働いている<b>社会技術システム</b>の問題の表れです。</p>
         <div class="label">ミスの影響を小さくする技術</div>
         <div class="row">${["徹底したテスト（プロパティテストも）", "設定をすぐ戻せるロールバック", "段階的なロールアウト", "詳しいモニタリング", "オブザーバビリティ", "間違ったことをしにくいインターフェース"].map(w => `<span class="chip pages">${w}</span>`).join("")}</div>
@@ -337,6 +535,8 @@ const INTRO_BODY = {
         </ul>
         <p class="prompt">まずは<b>今の負荷を数字で表します</b>（リクエスト数/秒、1日に増えるデータ量、同時オンライン数のピーク、読み書きの比率、キャッシュのヒット率、ユーザーあたりのフォロワー数など）。平均が大事なこともあれば、少数の極端なケースがボトルネックになることもあります。</p>
         <p class="hint">「GoogleやAmazonではないのだから」が当てはまるかはアプリしだい。ユーザーの少ないスタートアップでは、仮想的なスケールへの投資はむしろ柔軟さを奪う。</p>
+        <div class="label">2.4.2 3つのアーキテクチャ</div>
+        ${FIG.arch()}
       </div>
       <div class="col">
         <div class="tbl-wrap wrap" style="max-height:none"><table>
