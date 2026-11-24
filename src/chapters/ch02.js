@@ -480,8 +480,13 @@ const INTRO_BODY = {
         <p class="takeaway">バックエンドではまれな遅延も、ユーザーにはよくある遅延になる。だから<b>バックエンドほど高いパーセンタイルが大事</b>。</p>
       </div>
       <div class="col">
+        <div class="tbl-wrap wrap" style="max-height:none"><table>
+          <thead><tr><th>用語</th><th>何を表すか</th><th>例</th></tr></thead>
+          <tbody>
+            <tr><td style="white-space:nowrap"><b>SLO</b><br>サービスレベル目標</td><td>サービスが保つべき品質を、<b>速さ</b>と<b>失敗の少なさ</b>の数字で決めた目標</td><td>p50 &lt; 200ms<br>p99 &lt; 1秒<br>有効なリクエストの99.9%がエラーなし</td></tr>
+            <tr><td style="white-space:nowrap"><b>SLA</b><br>サービスレベル合意</td><td>SLOを<b>満たせなかったときにどうするか</b>を決めた、顧客との契約</td><td>満たせなかった月は、利用料の一部を返金する</td></tr>
+          </tbody></table></div>
         <ul class="points">
-          <li><b>SLO</b>は目標（例：p50 &lt; 200ms、p99 &lt; 1秒、有効なリクエストの99.9%がエラーなし）。<b>SLA</b>は、それを満たせなかったときにどうするか（返金など）を決めた契約。</li>
           <li>ダッシュボードには、直近10分などの時間の窓でパーセンタイルを計算して出す。全部並べ替えるのが重ければ、近似のアルゴリズム（HdrHistogram、t-digest、OpenHistogram、DDSketch）を使う。</li>
           <li>パーセンタイルの<b>平均は数学的に意味がない</b>。マシンをまたいだり時間解像度を下げたりするときは、<b>ヒストグラムを足し合わせる</b>。</li>
         </ul>
