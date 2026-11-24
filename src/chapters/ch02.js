@@ -32,12 +32,27 @@ const FIG = {
     s += R(356, 14, 112, 162) + T(412, 82, "読むときは", { anchor: "middle", bold: 1 }) + T(412, 98, "でき上がったものを", { anchor: "middle", size: 10 }) + T(412, 113, "返すだけ", { anchor: "middle", size: 10 });
     return svg(470, 186, "図2-2 ファンアウト：新しい投稿を、投稿者のフォロワー全員のタイムラインに書き込む", 480, s);
   },
+  // 読むときに集める：1回の読み込みで、フォロー先全員の投稿を引く（図2-2と対になる形）
+  pull: () => {
+    const rows = ["フォロー先Aの投稿", "フォロー先Bの投稿", "… 200人目まで"];
+    let s = defs("ah-pull");
+    s += R(0, 66, 104, 54, ACC) + T(52, 86, "アプリが読む", { anchor: "middle", bold: 1 }) + T(52, 104, "5秒ごと（ポーリング）", { anchor: "middle", size: 10, fill: "var(--muted)" });
+    s += T(52, 140, "フォロー先の数だけ", { anchor: "middle", size: 10, fill: "var(--accent)" }) + T(52, 154, "postsを引く", { anchor: "middle", size: 10, fill: "var(--accent)" });
+    rows.forEach((r, i) => {
+      const y = 22 + i * 60;
+      s += L(104, 93, 168, y + 15, { m: "ah-pull" });
+      s += R(174, y, 134, 30, i === 2 ? { dash: 1 } : {}) + T(241, y + 19, r, { anchor: "middle", size: 10.5 });
+      s += L(308, y + 15, 352, 93, { m: "ah-pull" });
+    });
+    s += R(356, 66, 112, 54) + T(412, 86, "マージして", { anchor: "middle", bold: 1 }) + T(412, 104, "新しい順に返す", { anchor: "middle", size: 10 });
+    return svg(470, 186, "読むときに集める：アプリが5秒ごとに読み、そのたびにフォロー先全員のpostsを引いて、マージして返す", 480, s);
+  },
   // 図2-3 スループットとレスポンスタイム
-  queue: () => svg(320, 150, "図2-3 スループットが上限に近づくと、レスポンスタイムが急に増える", 420,
+  queue: () => svg(340, 150, "図2-3 スループットが上限に近づくと、レスポンスタイムが急に増える", 420,
     L(30, 130, 310, 130) + L(30, 10, 30, 130) + L(270, 10, 270, 130, { dash: 1 }) +
     `<path d="M30 110 C 150 108, 220 100, 250 70 S 266 20, 268 12" fill="none" stroke="var(--accent)" stroke-width="2.5"/>` +
     T(305, 145, "スループット", { anchor: "end", fill: "var(--muted)" }) + T(36, 20, "レスポンスタイム", { fill: "var(--muted)" }) +
-    T(266, 145, "処理の上限", { anchor: "end", size: 10, fill: "var(--muted)" }) + T(40, 124, "空いているときはサービスタイムだけ", { size: 10, fill: "var(--muted)" })),
+    T(275, 18, "処理の上限", { size: 10, fill: "var(--muted)" }) + T(40, 124, "空いているときはサービスタイムだけ", { size: 10, fill: "var(--muted)" })),
   // リトライストームの悪循環
   loop: () => {
     const b = (x, y, a, c) => R(x, y, 136, 40) + T(x + 68, y + 17, a, { anchor: "middle", size: 10.5, bold: 1 }) + T(x + 68, y + 32, c, { anchor: "middle", size: 9.5, fill: "var(--muted)" });
@@ -170,19 +185,9 @@ const SLIDES = [
   { type: "intro", id: "maint", sec: "2.5 メンテナンス性", title: "運用性・簡潔性・発展性" },
   {
     type: "q", sec: "2.1.1 ユーザー、投稿、フォローの表現", title: "ポーリング間隔を延ばしたら", ref: "timeline",
-    aside: () => `<div class="label">図2-1 のスキーマと、ホームタイムラインのクエリ</div>
-      <div class="row" style="align-items:flex-start">
-        <div class="tbl-wrap"><table><thead><tr><th colspan="2">users</th></tr></thead><tbody><tr><td>id</td><td>12</td></tr><tr><td>screen_name</td><td>jack</td></tr></tbody></table></div>
-        <div class="tbl-wrap"><table><thead><tr><th colspan="2">posts</th></tr></thead><tbody><tr><td>id</td><td>20</td></tr><tr><td>sender_id</td><td>12</td></tr><tr><td>text</td><td>just setting up…</td></tr><tr><td>timestamp</td><td>1142974214</td></tr></tbody></table></div>
-        <div class="tbl-wrap"><table><thead><tr><th colspan="2">follows</th></tr></thead><tbody><tr><td>follower_id</td><td>17055506</td></tr><tr><td>followee_id</td><td>12</td></tr></tbody></table></div>
-      </div>
-      <pre>SELECT posts.*, users.* FROM posts
-  JOIN follows ON posts.sender_id = follows.followee_id
-  JOIN users   ON posts.sender_id = users.id
-  WHERE follows.follower_id = current_user
-  ORDER BY posts.timestamp DESC
-  LIMIT 1000</pre>
-      <p class="hint">1回のクエリで、フォロー中の全員の最近の投稿を集めてマージする。</p>`,
+    aside: () => `<div class="label">読むときに集める：1回の読み込みの中身</div>
+      ${FIG.pull()}
+      <p class="hint">オンラインのユーザー全員が、これをポーリングの間隔ごとに繰り返す。</p>`,
     prompt: "同時にオンラインのユーザーが1,000万人、平均200人をフォローしている。読むときに集める方式で、ポーリングの間隔を5秒から10秒に延ばした。フォロー先ごとのルックアップ数と、書くときに配る方式（投稿5,800件/秒）の書き込み数を比べた説明として正しいのは？",
     choices: [
       { text: "毎秒100万回。書くときに配る方式の約116万回/秒とほぼ同じになる", ok: false, note: "1,000万人 ÷ 10秒 = 毎秒100万クエリですが、1クエリごとにフォロー中の200人分の投稿を引くので、ルックアップはその200倍です。" },
@@ -267,9 +272,9 @@ const SLIDES = [
       { text: "約1%。並列に呼んでいるので、遅延が足し算になることはない", ok: false, note: "足し算にはなりませんが、ページは10個すべてが返るまで待ちます。どれか1つでも遅ければ、ページも遅くなります。" },
       { text: "約10%。ただし、並列をやめて順番に呼べば約1%に戻せる", ok: false, note: "順番に呼んでも、それぞれの呼び出しが1%で遅くなることは変わりません。待ち時間が積み重なるぶん、むしろ遅くなります。" },
       { text: "ほぼ0%。10個すべてが同時に遅くなる確率は、0.01の10乗しかない", ok: false, note: "全部が遅くなる必要はありません。1つ遅いだけで、ページ全体が遅くなります。" },
-      { text: "約10%。どれか1つでも遅ければ、ページ全体が遅くなる", ok: true, note: "1つも遅くならない確率は 0.99 の10乗 ≒ 0.904 なので、約9.6%のページが遅くなります。これが末尾遅延の増幅です。" },
+      { text: "約10%。どれか1つでも遅ければ、ページ全体が遅くなる", ok: true, note: "並列でも、ページはいちばん遅いバックエンドを待ちます。10回のうち1回でも遅いものを引けば、ページ全体が遅くなります。" },
     ],
-    takeaway: "<b>末尾遅延の増幅</b>：バックエンドではまれな遅延も、呼び出す数が増えるとユーザーにはよくある遅延になる。だから、バックエンドほど高いパーセンタイルが大事。",
+    takeaway: "<b>求め方</b>：「1つでも遅い」確率は、逆の「全部速い」確率から求める。1つが速い確率は0.99、10個とも速い確率は0.99<sup>10</sup> ≒ 0.904。だから 1 − 0.904 ≒ <b>0.096（約10%）</b>。<br><br><b>末尾遅延の増幅</b>：バックエンドではまれな遅延も、呼び出す数が増えるとユーザーにはよくある遅延になる。だから、バックエンドほど高いパーセンタイルが大事。",
   },
   {
     type: "q", sec: "2.2.3 レスポンスタイムメトリクスの活用", title: "10台のp99をまとめる", ref: "metrics",
@@ -403,21 +408,23 @@ const INTRO_BODY = {
   timeline: () => `<div class="grid">
       <div class="col">
         <p class="prompt">X（旧Twitter）のようなSNSを考えます。投稿は平均5,800件/秒（ピークは15万件/秒）、ユーザーは平均200人をフォローし、200人にフォローされています。ただし実際の分布は極端に偏っていて、フォロワーが1億人を超えるセレブもいます。</p>
-        <p class="hint">ホームタイムライン＝<b>フォローしている人の最近の投稿を、新しい順に並べたもの</b>。データは users・posts・follows の3テーブル（図2-1）。これを作る方法が2つある。</p>
+        <p class="hint">ホームタイムライン＝<b>フォローしている人の最近の投稿を、新しい順に並べたもの</b>。データは users・posts・follows の3テーブル（図2-1）で、<b>投稿はどの方式でも必ず posts に入る</b>。要件は「<b>投稿を5秒以内にフォロワーに届ける</b>」こと。タイムラインの作り方が2つある。</p>
         <div class="tbl-wrap wrap" style="max-height:none"><table>
           <thead><tr><th></th><th>読むときに集める</th><th>書くときに配る</th></tr></thead>
           <tbody>
-            <tr><td style="white-space:nowrap">投稿したとき</td><td>postsに1行INSERTするだけ</td><td>フォロワー全員のタイムラインに書く（<b>ファンアウト</b>）</td></tr>
+            <tr><td style="white-space:nowrap">投稿したとき</td><td>postsに入れるだけ。<b>誰にも配らない</b></td><td>postsに入れたうえで、フォロワー全員のタイムラインにも書く（<b>ファンアウト</b>）</td></tr>
             <tr><td style="white-space:nowrap">読むとき</td><td>フォロー先200人のpostsをJOINし、新しい順に並べる。これを<b>5秒ごとに繰り返す</b>（ポーリング）</td><td>でき上がったタイムラインを返すだけ</td></tr>
             <tr><td style="white-space:nowrap">コスト</td><td>1,000万人 ÷ 5秒 = 200万クエリ/秒<br>× フォロー先200人 = <b>4億ルックアップ/秒</b></td><td>5,800投稿/秒<br>× フォロワー200人 = <b>約116万書き込み/秒</b></td></tr>
           </tbody></table></div>
+        <div class="label">セレブ対策：2つの方式のハイブリッド</div>
+        <div class="flow">${box("配っておいた分", "普通の人の投稿")}<span class="arrow">＋</span>${box("読むときに集める分", "postsにあるセレブの投稿", "accent")}${arrow()}${box("マージ", "新しい順に返す")}</div>
       </div>
       <div class="col">
         <p class="prompt">クエリの結果を事前に計算して更新し続けることを<b>マテリアライゼーション</b>、そのタイムラインのキャッシュを<b>マテリアライズドビュー</b>と呼びます。読み取りが速くなる代わりに、書き込みの仕事が増えます。</p>
         <ul class="points">
           <li>投稿が急増しても、配信はキューに入れて遅らせてよい。読み込みはキャッシュを返すだけなので速いまま。</li>
           <li><b>大量にフォローしていて、フォロー先がよく投稿するユーザー</b>：どうせ全部は読まないので、書き込みの一部を捨ててサンプルを見せればよい。</li>
-          <li><b>フォロワーが非常に多いセレブ</b>：書き込みは捨てられない。投稿を配らずに別に保存し、読み込みのときにマージする。それでも大量のインフラが要る。</li>
+          <li><b>フォロワーが非常に多いセレブ</b>：書き込みは捨てられない。そこで2つの方式を<b>組み合わせる（ハイブリッド）</b>。普通の人の投稿は書くときに配り、セレブの投稿だけはpostsに入れるだけで配らず、読むときにpostsから取ってきて足す。それでも大量のインフラが要る。</li>
         </ul>
         <div class="label">図2-2 書くときに配る（ファンアウト）</div>
         ${FIG.fanout()}
@@ -440,10 +447,10 @@ const INTRO_BODY = {
         <div class="tbl-wrap wrap" style="max-height:none"><table>
           <thead><tr><th>どこで</th><th>対策</th></tr></thead>
           <tbody>
-            <tr><td>クライアント</td><td><b>指数バックオフ</b>：リトライの間隔を少しずつ長くし、ランダムにずらす</td></tr>
-            <tr><td>クライアント</td><td><b>サーキットブレーカー</b>、<b>トークンバケット</b>：最近エラーやタイムアウトを返した相手への送信を一時的に止める</td></tr>
-            <tr><td>サーバー</td><td><b>負荷の削減</b>（load shedding）：過負荷に近づいたら、先回りしてリクエストを拒否する</td></tr>
-            <tr><td>サーバー</td><td><b>バックプレッシャー</b>：クライアントに速度を落とすよう応答する</td></tr>
+            <tr><td style="white-space:nowrap">クライアント</td><td><b>指数バックオフ</b>：リトライの間隔を少しずつ長くし、ランダムにずらす</td></tr>
+            <tr><td style="white-space:nowrap">クライアント</td><td><b>サーキットブレーカー</b>（失敗が続いた相手にはしばらく送らない）や<b>トークンバケット</b>（送れる量に上限を設ける）で、エラーやタイムアウトを返した相手への送信を一時的に止める</td></tr>
+            <tr><td style="white-space:nowrap">サーバー</td><td><b>負荷の削減</b>（load shedding）：過負荷に近づいたら、先回りしてリクエストを拒否する</td></tr>
+            <tr><td style="white-space:nowrap">サーバー</td><td><b>バックプレッシャー</b>：クライアントに速度を落とすよう応答する</td></tr>
           </tbody></table></div>
         ${FIG.loop()}
       </div>
@@ -452,8 +459,15 @@ const INTRO_BODY = {
       <div class="col">
         <div class="label">図2-4 レスポンスタイムの内訳</div>
         ${FIG.timing()}
+        <div class="tbl-wrap wrap" style="max-height:none"><table>
+          <thead><tr><th>用語</th><th>意味</th><th>図2-4では</th></tr></thead>
+          <tbody>
+            <tr><td style="white-space:nowrap"><b>レスポンスタイム</b></td><td>クライアントから見た全体の時間</td><td>上の「レスポンスタイム」の幅全体</td></tr>
+            <tr><td style="white-space:nowrap"><b>サービスタイム</b></td><td>サービスが実際に処理している時間</td><td>「処理」の箱</td></tr>
+            <tr><td style="white-space:nowrap"><b>レイテンシ</b></td><td>処理されずに待っている時間の総称</td><td>ネットワーク、キューイング</td></tr>
+          </tbody></table></div>
+        <p class="hint">レスポンスタイム ＝ レイテンシ（ネットワーク＋キューイング）＋ サービスタイム</p>
         <ul class="points">
-          <li><b>レスポンスタイム</b>は、クライアントから見た全体の時間。<b>サービスタイム</b>は、サービスが実際に処理している時間。<b>レイテンシ</b>は、処理されずに待っている時間の総称。</li>
           <li>同じリクエストでも、コンテキストスイッチ、パケットの再送、GCの停止、ページフォールトなどで時間がばらつく。</li>
           <li>少数の遅いリクエストが後続を待たせる<b>先頭ブロッキング</b>が、ばらつきの大部分を占めることが多い。キューイング遅延はサービスタイムに入らないので、<b>クライアント側で測る</b>。</li>
         </ul>
@@ -463,7 +477,8 @@ const INTRO_BODY = {
         ${FIG.pct()}
         <ul class="points">
           <li><b>平均</b>は、スループットの限界を見積もるのには使える。ただ、その遅さを実際に経験した人がどれだけいるかはわからない。</li>
-          <li><b>p50（中央値）</b>は典型的な待ち時間。<b>p95・p99・p999</b>は外れ値の深刻さ（<b>末尾遅延</b>）を表す。</li>
+          <li><b>パーセンタイル</b>：レスポンスタイムを速い順に並べたときの位置。<b>p95が1.5秒</b>なら、100件中95件は1.5秒未満、5件は1.5秒以上かかった。</li>
+          <li><b>p50（中央値）</b>は真ん中の値で、典型的な待ち時間。<b>p95・p99・p999</b>（99.9%）は、遅い外れ値がどれだけ深刻か（<b>末尾遅延</b>）を表す。</li>
           <li>Amazonは内部サービスの要件をp99.9で決めている。最も遅いリクエストを受けるのは、データが多い、つまりたくさん買ってきた<b>最も価値のある顧客</b>であることが多いから。p99.99はコストが見合わないと判断した。</li>
         </ul>
       </div>
